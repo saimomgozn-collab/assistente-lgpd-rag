@@ -7,7 +7,7 @@ from pathlib import Path
 
 from dotenv import load_dotenv
 
-# Adiciona o root do projeto no path para imports
+# Adiciona root do projeto no path
 _ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(_ROOT))
 
@@ -15,20 +15,19 @@ load_dotenv()
 
 import streamlit as st  # noqa: E402
 
-from src.observability.trace import trace, log_event  # noqa: E402
+from src.observability.trace import log_event  # noqa: E402
 from src.pipeline.cache import ExactCache, SemanticCache  # noqa: E402
 from src.pipeline.rag import build_rag_pipeline  # noqa: E402
 from src.pipeline.routing import classify_complexity  # noqa: E402
 
-
-# ---------------------------------------------------------------- Streamlit UI
+# UI setup
 st.set_page_config(page_title="Assistente LGPD & Defesa", page_icon=":shield:", layout="centered")
 
 st.title(":shield: Assistente Técnico de Conformidade LGPD")
 st.caption("Análise inteligente de privacidade, segurança da informação e governança de dados.")
 
 
-# Inicializacao lazy de pipeline + caches
+# Inicializacao de pipeline e caches
 @st.cache_resource
 def get_pipeline():
     return build_rag_pipeline(corpus_dir=str(_ROOT / "data" / "corpus"))
@@ -50,7 +49,7 @@ with st.spinner("Inicializando pipeline RAG..."):
     semantic_cache = get_semantic_cache()
 
 
-# Sidebar — metricas e debug
+# Metricas e debug na sidebar
 with st.sidebar:
     st.header("Métricas do Sistema")
     st.metric("Chunks Indexados", pipeline.collection.count())
@@ -63,59 +62,59 @@ with st.sidebar:
         st.success("Caches limpos. Recarregue a página.")
 
 
-# Main — chat interface
+# Interface principal
 query = st.text_input("Sua pergunta:", placeholder="Ex: O que são dados pessoais sensíveis segundo o Artigo 5?")
 
 if query:
-    with trace("query_handle", query=query) as ctx:
-        trace_id = ctx["trace_id"]
+    # Trace contornado para evitar TypeError na nuvem
+    trace_id = "no-trace"
 
-        # 1. Exact cache
-        cached = exact_cache.get(query)
-        if cached:
-            st.success("Cache hit (exact)")
-            st.write(cached)
-            log_event("cache_hit", trace_id=trace_id, layer="exact")
-            st.stop()
+    # Busca no cache exato
+    cached = exact_cache.get(query)
+    if cached:
+        st.success("Cache hit (exact)")
+        st.write(cached)
+        log_event("cache_hit", trace_id=trace_id, layer="exact")
+        st.stop()
 
-        # 2. Semantic cache
-        try:
-            cached = semantic_cache.get(query)
-        except NotImplementedError:
-            cached = None
-            st.warning("Semantic cache nao implementado (TODO 5). Caindo no LLM real.")
+    # Busca no cache semantico
+    try:
+        cached = semantic_cache.get(query)
+    except NotImplementedError:
+        cached = None
+        st.warning("Semantic cache nao implementado. Caindo no LLM real.")
 
-        if cached:
-            st.success("Cache hit (semantic)")
-            st.write(cached)
-            log_event("cache_hit", trace_id=trace_id, layer="semantic")
-            st.stop()
+    if cached:
+        st.success("Cache hit (semantic)")
+        st.write(cached)
+        log_event("cache_hit", trace_id=trace_id, layer="semantic")
+        st.stop()
 
-        # 3. Pipeline RAG + Routing
-        try:
-            decision = classify_complexity(query)
-            st.info(f"Routing: {decision.complexity} -> {decision.model}")
-            log_event("route_decision", trace_id=trace_id, model=decision.model, complexity=decision.complexity, reason=decision.reason)
-        except NotImplementedError:
-            st.warning("Routing nao implementado (TODO 6). Usando modelo default.")
+    # Execucao do pipeline RAG e roteamento
+    try:
+        decision = classify_complexity(query)
+        st.info(f"Routing: {decision.complexity} -> {decision.model}")
+        log_event("route_decision", trace_id=trace_id, model=decision.model, complexity=decision.complexity, reason=decision.reason)
+    except NotImplementedError:
+        st.warning("Routing nao implementado. Usando modelo default.")
 
-        try:
-            result = pipeline.answer(query)
-        except NotImplementedError as e:
-            st.error(f"Pipeline nao implementado: {e}")
-            st.info("Implemente TODOs 1-3 em src/pipeline/rag.py para destravar.")
-            st.stop()
+    try:
+        result = pipeline.answer(query)
+    except NotImplementedError as e:
+        st.error(f"Pipeline nao implementado: {e}")
+        st.info("Implemente os requisitos em src/pipeline/rag.py para destravar.")
+        st.stop()
 
-        # 4. Renderiza + cacheia
-        st.write(result["answer"])
-        if result.get("sources"):
-            with st.expander("Fontes citadas"):
-                for source, page in result["sources"]:
-                    st.write(f"- {source} (p. {page})")
+    # Renderizacao e atualizacao de cache
+    st.write(result["answer"])
+    if result.get("sources"):
+        with st.expander("Fontes citadas"):
+            for source, page in result["sources"]:
+                st.write(f"- {source} (p. {page})")
 
-        exact_cache.put(query, result["answer"])
-        semantic_cache.put(query, result["answer"])
-        log_event("answer_generated", trace_id=trace_id, sources=len(result.get("sources", [])))
+    exact_cache.put(query, result["answer"])
+    semantic_cache.put(query, result["answer"])
+    log_event("answer_generated", trace_id=trace_id, sources=len(result.get("sources", [])))
 
 
 st.divider()
