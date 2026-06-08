@@ -1,11 +1,4 @@
-"""Streamlit UI — entrada principal do app. Pronta para deploy 1-click no Streamlit Cloud.
-
-Voce nao precisa editar quase nada aqui — ja faz integracao com:
-- src.pipeline.rag (TODOs 1-3)
-- src.pipeline.cache (TODO 5)
-- src.pipeline.routing (TODO 6)
-- src.pipeline.tools (TODO 4, opcional)
-"""
+"""Streamlit UI — entrada principal do app. Pronta para deploy no Streamlit Cloud."""
 
 from __future__ import annotations
 
@@ -29,10 +22,10 @@ from src.pipeline.routing import classify_complexity  # noqa: E402
 
 
 # ---------------------------------------------------------------- Streamlit UI
-st.set_page_config(page_title="Portfolio LLM Demo", page_icon=":robot:", layout="centered")
+st.set_page_config(page_title="Assistente LGPD & Defesa", page_icon=":shield:", layout="centered")
 
-st.title(":robot: TODO — Substitua pelo titulo do seu projeto")
-st.caption("TODO — Substitua: 1-sentence pitch do seu projeto")
+st.title(":shield: Assistente Técnico de Conformidade LGPD")
+st.caption("Análise inteligente de privacidade, segurança da informação e governança de dados.")
 
 
 # Inicializacao lazy de pipeline + caches
@@ -59,19 +52,19 @@ with st.spinner("Inicializando pipeline RAG..."):
 
 # Sidebar — metricas e debug
 with st.sidebar:
-    st.header("Metricas")
-    st.metric("Chunks indexados", pipeline.collection.count())
-    st.metric("Exact cache", exact_cache.stats()["size"])
-    st.metric("Semantic cache", semantic_cache.stats()["size"])
+    st.header("Métricas do Sistema")
+    st.metric("Chunks Indexados", pipeline.collection.count())
+    st.metric("Exact Cache Hits", exact_cache.stats()["size"])
+    st.metric("Semantic Cache Hits", semantic_cache.stats()["size"])
 
-    if st.button("Limpar caches"):
+    if st.button("Limpar Caches"):
         get_exact_cache.clear()
         get_semantic_cache.clear()
-        st.success("Caches limpos. Recarregue a pagina.")
+        st.success("Caches limpos. Recarregue a página.")
 
 
 # Main — chat interface
-query = st.text_input("Sua pergunta:", placeholder="Pergunte algo sobre o corpus indexado...")
+query = st.text_input("Sua pergunta:", placeholder="Ex: O que são dados pessoais sensíveis segundo o Artigo 5?")
 
 if query:
     with trace("query_handle", query=query) as ctx:
@@ -102,7 +95,7 @@ if query:
         try:
             decision = classify_complexity(query)
             st.info(f"Routing: {decision.complexity} -> {decision.model}")
-            log_event("route_decision", trace_id=trace_id, **decision.__dict__)
+            log_event("route_decision", trace_id=trace_id, model=decision.model, complexity=decision.complexity, reason=decision.reason)
         except NotImplementedError:
             st.warning("Routing nao implementado (TODO 6). Usando modelo default.")
 
@@ -110,7 +103,7 @@ if query:
             result = pipeline.answer(query)
         except NotImplementedError as e:
             st.error(f"Pipeline nao implementado: {e}")
-            st.info("Implemente TODOs 1-3 em `src/pipeline/rag.py` para destravar.")
+            st.info("Implemente TODOs 1-3 em src/pipeline/rag.py para destravar.")
             st.stop()
 
         # 4. Renderiza + cacheia
@@ -118,7 +111,7 @@ if query:
         if result.get("sources"):
             with st.expander("Fontes citadas"):
                 for source, page in result["sources"]:
-                    st.write(f"- `{source}:p{page}`")
+                    st.write(f"- {source} (p. {page})")
 
         exact_cache.put(query, result["answer"])
         semantic_cache.put(query, result["answer"])
@@ -127,6 +120,6 @@ if query:
 
 st.divider()
 st.caption(
-    "TODO README — substitua por: problem statement, arquitetura, custo/latencia, decisoes de design. "
-    "Veja `README.md` do projeto para a estrutura completa."
+    "Arquitetura: RAG local com ChromaDB e embeddings do Gemini. "
+    "Proteção ativa via function-calling para citação precisa de artigos."
 )

@@ -1,7 +1,4 @@
-"""Model routing cheap-first com fallback.
-
-Reaproveita o notebook 05. Voce vai preencher 1 TODO aqui.
-"""
+"""Model routing cheap-first com fallback."""
 
 from __future__ import annotations
 
@@ -18,24 +15,39 @@ class RouteDecision:
     reason: str
 
 
-# ------------------------------------------------------------------ TODO 6
 def classify_complexity(query: str) -> RouteDecision:
-    """Classifica complexidade da query para escolher modelo (cheap vs premium).
-
-    Estrategia heuristica simples. Em producao, evoluiria para classifier treinado.
-    """
+    """Classifica complexidade da query para escolher modelo."""
     cheap_model = os.environ.get("CHEAP_MODEL", "gemini-2.5-flash-lite")
     premium_model = os.environ.get("PREMIUM_MODEL", "gemini-2.5-pro")
 
-    # SEU CODIGO AQUI — TODO 6
-    # Implemente heuristica simples para classificar a query como "simple" ou "complex".
-    # Sugestao de regras:
-    #   - len(query) < 60 e query termina em "?" → simple
-    #   - contem palavras como "explique", "compare", "analise", "projete" → complex
-    #   - default → simple
-    # Retorne RouteDecision(model=cheap_model OU premium_model, complexity=..., reason="por que")
-    # Dica: notebook 05, Etapa 5 — Model Routing.
-    raise NotImplementedError("TODO 6: implementar classify_complexity()")
+    query_lower = query.lower()
+    complex_keywords = [
+        "explique", "compare", "analise", "projete", 
+        "diferença", "resuma", "por que", "quais os impactos"
+    ]
+
+    # Verifica necessidade de processamento profundo
+    if any(word in query_lower for word in complex_keywords):
+        return RouteDecision(
+            model=premium_model, 
+            complexity="complex", 
+            reason="Palavras-chave analiticas detectadas"
+        )
+
+    # Verifica queries curtas e diretas
+    if len(query) < 60 and query.strip().endswith("?"):
+        return RouteDecision(
+            model=cheap_model, 
+            complexity="simple", 
+            reason="Query curta e direta"
+        )
+
+    # Fallback padrao
+    return RouteDecision(
+        model=cheap_model, 
+        complexity="simple", 
+        reason="Fallback padrao (cheap-first)"
+    )
 
 
 def make_client() -> OpenAI:
