@@ -8,3 +8,4 @@ datasets
 pypdf
 langchain-text-splitters
 openai
+protobuf==4.25.3
