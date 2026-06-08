@@ -1,71 +1,59 @@
 from __future__ import annotations
 
 import os
-import time
 import uuid
 from pathlib import Path
-from typing import Any
 
 import chromadb
-from chromadb.utils.embedding_functions import OpenAIEmbeddingFunction
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from openai import OpenAI
 from pypdf import PdfReader
 
 
-def _make_client() -> tuple[OpenAI, str]:
-    """Inicializa cliente OpenAI-compatible conforme provider escolhido no .env."""
+def _make_client() -> OpenAI:
+    """Inicializa cliente OpenAI-compatible."""
     if "GEMINI_API_KEY" in os.environ:
         client = OpenAI(
             api_key=os.environ["GEMINI_API_KEY"],
             base_url="https://generativelanguage.googleapis.com/v1beta/openai/",
         )
-        embed_api_base = "https://generativelanguage.googleapis.com/v1beta/openai/"
     elif "OPENAI_API_KEY" in os.environ:
         client = OpenAI()
-        embed_api_base = None
     else:
         raise RuntimeError("Configure GEMINI_API_KEY ou OPENAI_API_KEY no .env")
-    return client, embed_api_base
+    return client
 
 
 class RAGPipeline:
-    """Pipeline RAG end-to-end com Chroma local."""
+    """Pipeline RAG end-to-end com Chroma local e Embeddings Locais (Offline)."""
 
     def __init__(
         self,
         corpus_dir: str = "data/corpus",
         persist_dir: str = "data/chroma",
-        collection_name: str = "docs",
+        collection_name: str = "docs_local_v1",  # Nome novo para evitar conflitos de cache
         llm_model: str | None = None,
-        embed_model: str | None = None,
     ) -> None:
-        self.client, embed_api_base = _make_client()
+        self.client = _make_client()
         self.llm_model = llm_model or os.environ.get("LLM_MODEL", "gemini-2.5-flash-lite")
-        self.embed_model = embed_model or os.environ.get("EMBED_MODEL", "gemini-embedding-001")
-
-        embed_kwargs: dict[str, Any] = {
-            "api_key": os.environ.get("GEMINI_API_KEY") or os.environ.get("OPENAI_API_KEY"),
-            "model_name": self.embed_model,
-        }
-        if embed_api_base:
-            embed_kwargs["api_base"] = embed_api_base
-        self.embed_fn = OpenAIEmbeddingFunction(**embed_kwargs)
 
         self.corpus_dir = Path(corpus_dir)
         self.persist_dir = persist_dir
         self.collection_name = collection_name
 
         chroma = chromadb.PersistentClient(path=persist_dir)
+        
+        # MAGIA AQUI: Sem passar 'embedding_function', o Chroma baixa automaticamente 
+        # um modelo de IA gratuito e roda direto na CPU da nuvem, sem limites.
         self.collection = chroma.get_or_create_collection(
-            name=collection_name, embedding_function=self.embed_fn
+            name=collection_name
         )
 
     def ingest_and_index(self) -> int:
-        """Le PDFs de corpus_dir, faz chunking e indexa em Chroma com throttle."""
+        """Le PDFs e indexa LOCALMENTE sem gastar API e sem Rate Limits."""
         docs: list[dict] = []
         
-        # Ingestao de PDFs (ignora arquivos ocultos)
+        # Ingestao de PDFs
         for path in self.corpus_dir.glob("*.pdf"):
             if path.name.startswith("."):
                 continue
@@ -79,7 +67,7 @@ class RAGPipeline:
                         "page": idx + 1
                     })
 
-        # Chunking Recursivo
+        # Chunking
         splitter = RecursiveCharacterTextSplitter(chunk_size=800, chunk_overlap=100)
         ids, documents, metadatas = [], [], []
 
@@ -93,16 +81,13 @@ class RAGPipeline:
                     "page": doc["page"]
                 })
 
-        # Indexacao controlada por lotes e tempo para evitar estouro de cota
+        # Indexacao em massa na velocidade da luz (sem API, sem restricoes)
         if ids:
-            batch_size = 10
-            for i in range(0, len(ids), batch_size):
-                self.collection.add(
-                    ids=ids[i : i + batch_size],
-                    documents=documents[i : i + batch_size],
-                    metadatas=metadatas[i : i + batch_size]
-                )
-                time.sleep(10)  # Pausa de seguranca para reset de limite por minuto
+            self.collection.add(
+                ids=ids,
+                documents=documents,
+                metadatas=metadatas
+            )
 
         return self.collection.count()
 
@@ -125,14 +110,14 @@ class RAGPipeline:
         """Pipeline completo: retrieve + augment + generate."""
         hits = self.retrieve(question, k=k)
 
-        # Montagem do contexto estruturado
         context_blocks = []
         for h in hits:
             context_blocks.append(f"[{h['source']}:{h['page']}]\n{h['text']}")
         context = "\n\n".join(context_blocks)
 
-        # Chat completion via provider unificado
         prompt = PROMPT_TEMPLATE.format(context=context, question=question)
+        
+        # Somente AQUI a API gasta cota, apenas com o chat final.
         response = self.client.chat.completions.create(
             model=self.llm_model,
             messages=[{"role": "user", "content": prompt}],
@@ -159,7 +144,6 @@ RESPOSTA:"""
 
 
 def build_rag_pipeline(corpus_dir: str = "data/corpus") -> RAGPipeline:
-    """Factory: cria pipeline e indexa se o banco estiver vazio."""
     pipeline = RAGPipeline(corpus_dir=corpus_dir)
     if pipeline.collection.count() == 0:
         pipeline.ingest_and_index()
