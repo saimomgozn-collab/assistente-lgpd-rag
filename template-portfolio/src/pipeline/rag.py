@@ -95,14 +95,14 @@ class RAGPipeline:
 
         # Indexacao controlada por lotes e tempo para evitar estouro de cota
         if ids:
-            batch_size = 20
+            batch_size = 10
             for i in range(0, len(ids), batch_size):
                 self.collection.add(
                     ids=ids[i : i + batch_size],
                     documents=documents[i : i + batch_size],
                     metadatas=metadatas[i : i + batch_size]
                 )
-                time.sleep(5)  # Pausa de seguranca para reset de limite por minuto
+                time.sleep(10)  # Pausa de seguranca para reset de limite por minuto
 
         return self.collection.count()
 
