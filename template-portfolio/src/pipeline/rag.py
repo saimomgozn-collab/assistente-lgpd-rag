@@ -131,9 +131,8 @@ class RAGPipeline:
         }
 
 
-PROMPT_TEMPLATE = """Voce e um assistente tecnico. Responda APENAS com base no contexto abaixo.
-Se a informacao nao estiver no contexto, diga "Nao encontrado no corpus".
-Sempre cite a fonte usando o formato [arquivo:pagina].
+PROMPT_TEMPLATE = """Voce e um assistente tecnico especialista em LGPD. Responda com base no contexto fornecido e complete com seu conhecimento técnico caso necessário para responder de forma clara.
+Sempre cite a fonte encontrada usando o formato [arquivo:pagina].
 
 CONTEXTO:
 {context}
