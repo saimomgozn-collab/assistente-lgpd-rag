@@ -1,0 +1,10 @@
+streamlit
+python-dotenv
+langchain
+langchain-google-genai
+chromadb
+ragas
+datasets
+pypdf
+langchain-text-splitters
+openai
