@@ -1,18 +1,16 @@
-"""RAG pipeline — chunk, embed, index, retrieve, generate."""
-import time
-
 from __future__ import annotations
 
 import os
+import time
 import uuid
 from pathlib import Path
 from typing import Any
 
 import chromadb
 from chromadb.utils.embedding_functions import OpenAIEmbeddingFunction
+from langchain_text_splitters import RecursiveCharacterTextSplitter
 from openai import OpenAI
 from pypdf import PdfReader
-from langchain_text_splitters import RecursiveCharacterTextSplitter
 
 
 def _make_client() -> tuple[OpenAI, str]:
@@ -64,11 +62,13 @@ class RAGPipeline:
         )
 
     def ingest_and_index(self) -> int:
-        """Le PDFs de corpus_dir, faz chunking e indexa em Chroma."""
+        """Le PDFs de corpus_dir, faz chunking e indexa em Chroma com throttle."""
         docs: list[dict] = []
         
-        # Ingestao de PDFs
+        # Ingestao de PDFs (ignora arquivos ocultos)
         for path in self.corpus_dir.glob("*.pdf"):
+            if path.name.startswith("."):
+                continue
             reader = PdfReader(path)
             for idx, page in enumerate(reader.pages):
                 text = page.extract_text() or ""
@@ -93,7 +93,7 @@ class RAGPipeline:
                     "page": doc["page"]
                 })
 
-        # Indexacao em lotes para contornar limite da API (max 100 reqs)
+        # Indexacao controlada por lotes e tempo para evitar estouro de cota
         if ids:
             batch_size = 20
             for i in range(0, len(ids), batch_size):
@@ -102,6 +102,7 @@ class RAGPipeline:
                     documents=documents[i : i + batch_size],
                     metadatas=metadatas[i : i + batch_size]
                 )
+                time.sleep(5)  # Pausa de seguranca para reset de limite por minuto
 
         return self.collection.count()
 
@@ -110,7 +111,7 @@ class RAGPipeline:
         results = self.collection.query(query_texts=[query], n_results=k)
         hits = []
         
-        if results and results["documents"]:
+        if results and results["documents"] and len(results["documents"]) > 0:
             for idx in range(len(results["documents"][0])):
                 hits.append({
                     "text": results["documents"][0][idx],
@@ -124,13 +125,13 @@ class RAGPipeline:
         """Pipeline completo: retrieve + augment + generate."""
         hits = self.retrieve(question, k=k)
 
-        # Montagem do contexto
+        # Montagem do contexto estruturado
         context_blocks = []
         for h in hits:
             context_blocks.append(f"[{h['source']}:{h['page']}]\n{h['text']}")
         context = "\n\n".join(context_blocks)
 
-        # Chat completion
+        # Chat completion via provider unificado
         prompt = PROMPT_TEMPLATE.format(context=context, question=question)
         response = self.client.chat.completions.create(
             model=self.llm_model,
@@ -158,7 +159,7 @@ RESPOSTA:"""
 
 
 def build_rag_pipeline(corpus_dir: str = "data/corpus") -> RAGPipeline:
-    """Factory: cria pipeline e indexa corpus se ainda nao indexado."""
+    """Factory: cria pipeline e indexa se o banco estiver vazio."""
     pipeline = RAGPipeline(corpus_dir=corpus_dir)
     if pipeline.collection.count() == 0:
         pipeline.ingest_and_index()
