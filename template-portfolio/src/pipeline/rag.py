@@ -94,7 +94,7 @@ class RAGPipeline:
 
         # Indexacao em lotes para contornar limite da API (max 100 reqs)
         if ids:
-            batch_size = 90
+            batch_size = 20
             for i in range(0, len(ids), batch_size):
                 self.collection.add(
                     ids=ids[i : i + batch_size],
