@@ -1,4 +1,5 @@
 """RAG pipeline — chunk, embed, index, retrieve, generate."""
+import time
 
 from __future__ import annotations
 
