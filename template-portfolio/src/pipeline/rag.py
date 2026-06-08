@@ -63,7 +63,7 @@ class RAGPipeline:
         )
 
     def ingest_and_index(self) -> int:
-        """Le PDFs de `corpus_dir`, faz chunking e indexa em Chroma."""
+        """Le PDFs de corpus_dir, faz chunking e indexa em Chroma."""
         docs: list[dict] = []
         
         # Ingestao de PDFs
@@ -92,9 +92,15 @@ class RAGPipeline:
                     "page": doc["page"]
                 })
 
-        # Indexacao no Chroma
+        # Indexacao em lotes para contornar limite da API (max 100 reqs)
         if ids:
-            self.collection.add(ids=ids, documents=documents, metadatas=metadatas)
+            batch_size = 90
+            for i in range(0, len(ids), batch_size):
+                self.collection.add(
+                    ids=ids[i : i + batch_size],
+                    documents=documents[i : i + batch_size],
+                    metadatas=metadatas[i : i + batch_size]
+                )
 
         return self.collection.count()
 
