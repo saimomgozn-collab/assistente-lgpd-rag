@@ -132,7 +132,7 @@ class RAGPipeline:
 
 
 PROMPT_TEMPLATE = """Voce e um assistente tecnico especialista em LGPD. Responda com base no contexto fornecido.
-SEJA EXTREMAMENTE DIRETO E RESUMIDO. Formule a resposta em no maximo um paragrafo curto.
+SEJA EXTREMAMENTE DIRETO E RESUMIDO. Formule a resposta em no maximo dois paragrafos curtos.
 Sempre cite a fonte encontrada usando o formato [arquivo:pagina].
 
 CONTEXTO:
