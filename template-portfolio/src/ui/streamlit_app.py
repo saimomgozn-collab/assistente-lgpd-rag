@@ -1,4 +1,4 @@
-"""Streamlit UI - Assistente de Conformidade LGPD - Versão Premium"""
+"""Streamlit UI - Assistente de Conformidade LGPD """
 
 from __future__ import annotations
 import sys
@@ -6,18 +6,18 @@ from pathlib import Path
 from dotenv import load_dotenv
 import streamlit as st
 
-# PATH E SETUP
+# path setup
 _ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(_ROOT))
 load_dotenv()
 
-# Imports 
+# imports 
 from src.observability.trace import log_event
 from src.pipeline.cache import ExactCache, SemanticCache
 from src.pipeline.rag import build_rag_pipeline
 from src.pipeline.routing import classify_complexity
 
-# INICIAL
+# inicial config
 st.set_page_config(page_title="Assistente LGPD", page_icon="🛡️", layout="wide")
 
 def aplicar_design_premium():
@@ -27,9 +27,31 @@ def aplicar_design_premium():
         .stApp { background-color: #0b0f19; }
         div[data-testid="stSidebar"] { background-color: #111827; border-right: 1px solid #1f2937; }
         
-        .sidebar-brand { text-align: center; padding: 2rem 0; background: linear-gradient(180deg, #1e3a8a 0%, #0b0f19 100%); margin-bottom: 20px; }
-        .sidebar-brand h1 { color: #fbbf24; font-size: 2rem; margin: 0; }
-        .sidebar-brand p { color: #60a5fa; font-size: 0.8rem; letter-spacing: 2px; text-transform: uppercase; }
+        /* emblema 3d */
+        .sidebar-brand { 
+            text-align: center; 
+            padding: 2rem 1rem; 
+            background: rgba(17, 24, 39, 0.5); 
+            border: 1px solid rgba(251, 191, 36, 0.2);
+            border-radius: 20px;
+            margin: 20px;
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3), 0 0 15px rgba(251, 191, 36, 0.1);
+            backdrop-filter: blur(10px);
+        }
+        .sidebar-brand h1 { 
+            color: #fbbf24; 
+            font-size: 2.5rem; 
+            margin: 0; 
+            text-shadow: 0 0 20px rgba(251, 191, 36, 0.5);
+        }
+        .sidebar-brand p { 
+            color: #ffffff; 
+            font-size: 0.7rem; 
+            letter-spacing: 4px; 
+            text-transform: uppercase; 
+            margin-top: 5px;
+            opacity: 0.8;
+        }
         
         .metric-card { background-color: #1f2937; border-left: 4px solid #fbbf24; padding: 15px; border-radius: 8px; margin-bottom: 15px; }
         </style>
@@ -37,7 +59,7 @@ def aplicar_design_premium():
 
 aplicar_design_premium()
 
-# PIPELINE E CACHE
+# pipeline cache
 @st.cache_resource
 def get_pipeline():
     return build_rag_pipeline(corpus_dir=str(_ROOT / "data" / "corpus"))
@@ -55,12 +77,13 @@ pipeline = get_pipeline()
 exact_cache = get_exact_cache()
 semantic_cache = get_semantic_cache()
 
-# SIDEBAR (METRICAS)
+# sidebar (metricas)
 with st.sidebar:
     st.markdown("""
         <div class="sidebar-brand">
-            <h1>🛡️ LGPD</h1>
-            <p>Compliance Assistant</p>
+            <h1>🛡️</h1>
+            <h1 style="font-size: 1.5rem;">LGPD</h1>
+            <p>COMPLIANCE</p>
         </div>
     """, unsafe_allow_html=True)
     
@@ -73,20 +96,20 @@ with st.sidebar:
         get_semantic_cache.clear()
         st.rerun()
 
-# PRINCIPAL (CHAT)
+# principal (chat)
 tab1, tab2 = st.tabs(["💬 Chat com a Lei", "⚙️ Arquitetura"])
 
 with tab1:
     st.title("Assistente Técnico LGPD")
     
-    # Input de Chat
+    # input chat
     query = st.chat_input("Pergunte sobre artigos, prazos ou governança...")
     
     if query:
         st.chat_message("user").write(query)
         
         with st.chat_message("assistant"):
-            # Cache e RAG
+            # cache rag
             cached = exact_cache.get(query) or semantic_cache.get(query)
             
             if cached:
@@ -96,12 +119,12 @@ with tab1:
                 try:
                     result = pipeline.answer(query)
                     st.write(result["answer"])
-                    # Salva cache
+                    # salva cache
                     exact_cache.put(query, result["answer"])
                     semantic_cache.put(query, result["answer"])
                 except Exception as e:
                     st.error(f"Erro ao processar: {e}")
 
 with tab2:
-    st.subheader("Configurações do Sistema")
+    st.subheader("Configuracoes do Sistema")
     st.info("Arquitetura: RAG local com ChromaDB e embeddings do Gemini.")
