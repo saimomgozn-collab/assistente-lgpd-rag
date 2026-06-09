@@ -1,4 +1,4 @@
-"""Streamlit UI — entrada principal do app. Pronta para deploy no Streamlit Cloud."""
+"""Streamlit UI."""
 
 from __future__ import annotations
 
@@ -7,7 +7,7 @@ from pathlib import Path
 
 from dotenv import load_dotenv
 
-# Adiciona root do projeto no path
+# Path setup
 _ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(_ROOT))
 
@@ -21,52 +21,115 @@ from src.pipeline.rag import build_rag_pipeline  # noqa: E402
 from src.pipeline.routing import classify_complexity  # noqa: E402
 
 def aplicar_design_premium():
-    """Injeta CSS customizado para modernizar a interface do assistente."""
     st.markdown(
         """
         <style>
-        /* Ajuste do fundo geral e fontes */
         .stApp {
-            background-color: #0e1117;
+            background-color: #0b0f19;
         }
         
-        /* Customização dos Cards de Métricas na Sidebar */
+        div[data-testid="stSidebar"] {
+            background-color: #111827;
+            border-right: 1px solid #1f2937;
+        }
+        
         div[data-testid="stSidebar"] div.stMarkdown {
             padding: 0.2rem 0;
         }
         
+        /* Logo lateral LGPD */
+        .sidebar-logo {
+            text-align: center;
+            padding: 10px 0 30px 0;
+            border-bottom: 1px solid #1f2937;
+            margin-bottom: 20px;
+        }
+        
+        .sidebar-logo h1 {
+            color: #fbbf24;
+            font-weight: 900;
+            margin: 0;
+            font-size: 2.8rem;
+            letter-spacing: 2px;
+            line-height: 1.2;
+        }
+        
+        .sidebar-logo p {
+            color: #9ca3af;
+            margin: 0;
+            font-size: 0.85rem;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+
+        /* Cards de Metricas */
         .metric-card {
             background-color: #1f2937;
-            border: 1px solid #374151;
-            border-radius: 8px;
+            border-left: 3px solid #3b82f6;
+            border-radius: 6px;
             padding: 15px;
             margin-bottom: 12px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            box-shadow: 0 4px 6px rgba(0,0,0,0.2);
         }
         
         .metric-title {
             color: #9ca3af;
-            font-size: 0.85rem;
+            font-size: 0.8rem;
             text-transform: uppercase;
             letter-spacing: 0.05em;
             margin-bottom: 5px;
         }
         
         .metric-value {
-            color: #ffffff;
+            color: #f8fafc;
             font-size: 1.8rem;
             font-weight: 700;
         }
 
-        /* Estilização da caixa de texto/input principal */
+        /* Header Principal Customizado */
+        .main-header-container {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+            margin-bottom: 30px;
+            padding-top: 10px;
+        }
+
+        .shield-icon {
+            background: linear-gradient(135deg, #1e3a8a 0%, #3b82f6 100%);
+            padding: 18px;
+            border-radius: 16px;
+            box-shadow: 0 4px 20px rgba(59, 130, 246, 0.4);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .shield-icon span {
+            font-size: 3.5rem;
+            line-height: 1;
+        }
+
+        .header-text h1 {
+            margin: 0;
+            font-size: 2.4rem;
+            color: #f8fafc;
+            font-weight: 800;
+        }
+
+        .header-text p {
+            margin: 5px 0 0 0;
+            color: #94a3b8;
+            font-size: 1.05rem;
+        }
+
         .stTextInput img {
             max-width: 100%;
         }
         
-        /* Caixa de nota técnica da arquitetura no rodapé */
         .architecture-box {
             background-color: #111827;
-            border-left: 4px solid #3b82f6;
+            border-left: 4px solid #fbbf24;
             border-radius: 4px;
             padding: 15px;
             margin-top: 40px;
@@ -78,48 +141,63 @@ def aplicar_design_premium():
         unsafe_allow_html=True,
     )
 
-# UI setup
-st.set_page_config(page_title="Assistente LGPD & Defesa", page_icon=":shield:", layout="centered")
+# Config UI
+st.set_page_config(page_title="Assistente LGPD", page_icon="🛡️", layout="centered")
 
-# Aplica o design corporativo
 aplicar_design_premium()
 
-st.title(":shield: Assistente Técnico de Conformidade LGPD")
-st.caption("Análise inteligente de privacidade, segurança da informação e governança de dados.")
+# Header customizado via HTML para controle total do design
+st.markdown(
+    """
+    <div class="main-header-container">
+        <div class="shield-icon">
+            <span>🛡️</span>
+        </div>
+        <div class="header-text">
+            <h1>Assistente Técnico LGPD</h1>
+            <p>Análise inteligente de privacidade, segurança da informação e governança de dados.</p>
+        </div>
+    </div>
+    """,
+    unsafe_allow_html=True
+)
 
-
-# Inicializacao de pipeline e caches
+# Cache & Pipeline init
 @st.cache_resource
 def get_pipeline():
     return build_rag_pipeline(corpus_dir=str(_ROOT / "data" / "corpus"))
-
 
 @st.cache_resource
 def get_exact_cache():
     return ExactCache()
 
-
 @st.cache_resource
 def get_semantic_cache():
     return SemanticCache(threshold=0.93)
-
 
 with st.spinner("Inicializando pipeline RAG..."):
     pipeline = get_pipeline()
     exact_cache = get_exact_cache()
     semantic_cache = get_semantic_cache()
 
-
-# Metricas e debug na sidebar
+# Sidebar
 with st.sidebar:
+    st.markdown(
+        """
+        <div class="sidebar-logo">
+            <h1>LGPD</h1>
+            <p>Conformidade</p>
+        </div>
+        """,
+        unsafe_allow_html=True
+    )
+    
     st.header("Métricas do Sistema")
     
-    # Coleta os valores dinamicamente
     chunks_count = pipeline.collection.count()
     exact_hits = exact_cache.stats()["size"]
     semantic_hits = semantic_cache.stats()["size"]
     
-    # Renderiza os cards estilizados com os valores reais
     st.markdown(
         f"""
         <div class="metric-card">
@@ -143,15 +221,13 @@ with st.sidebar:
         get_semantic_cache.clear()
         st.success("Caches limpos. Recarregue a página.")
 
-
-# Interface principal
+# Main UI
 query = st.text_input("Sua pergunta:", placeholder="Ex: O que são dados pessoais sensíveis segundo o Artigo 5?")
 
 if query:
-    # Trace contornado para evitar TypeError na nuvem
     trace_id = "no-trace"
 
-    # Busca no cache exato
+    # Exact cache lookup
     cached = exact_cache.get(query)
     if cached:
         st.success("Cache hit (exact)")
@@ -159,7 +235,7 @@ if query:
         log_event("cache_hit", trace_id=trace_id, layer="exact")
         st.stop()
 
-    # Busca no cache semantico
+    # Semantic cache lookup
     try:
         cached = semantic_cache.get(query)
     except NotImplementedError:
@@ -172,7 +248,7 @@ if query:
         log_event("cache_hit", trace_id=trace_id, layer="semantic")
         st.stop()
 
-    # Execucao do pipeline RAG e roteamento
+    # RAG & Routing
     try:
         decision = classify_complexity(query)
         st.info(f"Routing: {decision.complexity} -> {decision.model}")
@@ -187,7 +263,7 @@ if query:
         st.info("Implemente os requisitos em src/pipeline/rag.py para destravar.")
         st.stop()
 
-    # Renderizacao e atualizacao de cache
+    # Output & cache update
     st.write(result["answer"])
     if result.get("sources"):
         with st.expander("Fontes citadas"):
@@ -198,8 +274,7 @@ if query:
     semantic_cache.put(query, result["answer"])
     log_event("answer_generated", trace_id=trace_id, sources=len(result.get("sources", [])))
 
-
-# Rodapé com a caixa técnica
+# Footer
 st.markdown(
     """
     <div class="architecture-box">
