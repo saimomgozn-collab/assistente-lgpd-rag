@@ -54,6 +54,7 @@ def aplicar_design_premium():
         }
         
         .metric-card { background-color: #1f2937; border-left: 4px solid #fbbf24; padding: 15px; border-radius: 8px; margin-bottom: 15px; }
+        .source-tag { font-size: 0.8rem; color: #60a5fa; background: #1e3a8a; padding: 2px 8px; border-radius: 4px; margin-right: 5px; }
         </style>
     """, unsafe_allow_html=True)
 
@@ -119,6 +120,14 @@ with tab1:
                 try:
                     result = pipeline.answer(query)
                     st.write(result["answer"])
+                    
+                    # mostra citacoes
+                    if result.get("sources"):
+                        st.markdown("---")
+                        st.caption("Fontes consultadas:")
+                        for source, page in result["sources"]:
+                            st.markdown(f"<span class='source-tag'>{source}</span> (p. {page})", unsafe_allow_html=True)
+                    
                     # salva cache
                     exact_cache.put(query, result["answer"])
                     semantic_cache.put(query, result["answer"])
