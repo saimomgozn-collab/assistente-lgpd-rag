@@ -20,8 +20,69 @@ from src.pipeline.cache import ExactCache, SemanticCache  # noqa: E402
 from src.pipeline.rag import build_rag_pipeline  # noqa: E402
 from src.pipeline.routing import classify_complexity  # noqa: E402
 
+def aplicar_design_premium():
+    """Injeta CSS customizado para modernizar a interface do assistente."""
+    st.markdown(
+        """
+        <style>
+        /* Ajuste do fundo geral e fontes */
+        .stApp {
+            background-color: #0e1117;
+        }
+        
+        /* Customização dos Cards de Métricas na Sidebar */
+        div[data-testid="stSidebar"] div.stMarkdown {
+            padding: 0.2rem 0;
+        }
+        
+        .metric-card {
+            background-color: #1f2937;
+            border: 1px solid #374151;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 12px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        .metric-title {
+            color: #9ca3af;
+            font-size: 0.85rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-bottom: 5px;
+        }
+        
+        .metric-value {
+            color: #ffffff;
+            font-size: 1.8rem;
+            font-weight: 700;
+        }
+
+        /* Estilização da caixa de texto/input principal */
+        .stTextInput img {
+            max-width: 100%;
+        }
+        
+        /* Caixa de nota técnica da arquitetura no rodapé */
+        .architecture-box {
+            background-color: #111827;
+            border-left: 4px solid #3b82f6;
+            border-radius: 4px;
+            padding: 15px;
+            margin-top: 40px;
+            color: #9ca3af;
+            font-size: 0.9rem;
+        }
+        </style>
+        """,
+        unsafe_allow_html=True,
+    )
+
 # UI setup
 st.set_page_config(page_title="Assistente LGPD & Defesa", page_icon=":shield:", layout="centered")
+
+# Aplica o design corporativo
+aplicar_design_premium()
 
 st.title(":shield: Assistente Técnico de Conformidade LGPD")
 st.caption("Análise inteligente de privacidade, segurança da informação e governança de dados.")
@@ -52,9 +113,30 @@ with st.spinner("Inicializando pipeline RAG..."):
 # Metricas e debug na sidebar
 with st.sidebar:
     st.header("Métricas do Sistema")
-    st.metric("Chunks Indexados", pipeline.collection.count())
-    st.metric("Exact Cache Hits", exact_cache.stats()["size"])
-    st.metric("Semantic Cache Hits", semantic_cache.stats()["size"])
+    
+    # Coleta os valores dinamicamente
+    chunks_count = pipeline.collection.count()
+    exact_hits = exact_cache.stats()["size"]
+    semantic_hits = semantic_cache.stats()["size"]
+    
+    # Renderiza os cards estilizados com os valores reais
+    st.markdown(
+        f"""
+        <div class="metric-card">
+            <div class="metric-title">Chunks Indexados</div>
+            <div class="metric-value">{chunks_count}</div>
+        </div>
+        <div class="metric-card">
+            <div class="metric-title">Exact Cache Hits</div>
+            <div class="metric-value">{exact_hits}</div>
+        </div>
+        <div class="metric-card">
+            <div class="metric-title">Semantic Cache Hits</div>
+            <div class="metric-value">{semantic_hits}</div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
 
     if st.button("Limpar Caches"):
         get_exact_cache.clear()
@@ -117,8 +199,13 @@ if query:
     log_event("answer_generated", trace_id=trace_id, sources=len(result.get("sources", [])))
 
 
-st.divider()
-st.caption(
-    "Arquitetura: RAG local com ChromaDB e embeddings do Gemini. "
-    "Proteção ativa via function-calling para citação precisa de artigos."
+# Rodapé com a caixa técnica
+st.markdown(
+    """
+    <div class="architecture-box">
+        <strong>Arquitetura:</strong> RAG local com ChromaDB e embeddings do Gemini. 
+        Proteção ativa via function-calling para citação precisa de artigos.
+    </div>
+    """,
+    unsafe_allow_html=True,
 )
